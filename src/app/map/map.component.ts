@@ -1,27 +1,30 @@
 import { Component, Input, ViewChild, NgZone, OnInit } from '@angular/core';
 import { MapsAPILoader, AgmMap } from '@agm/core';
 import { GoogleMapsAPIWrapper } from '@agm/core/services';
+import Stomp from 'stompjs';
+import SockJS from 'sockjs-client';
+import * as moment from 'moment';
+import * as _ from 'underscore';
+import { Port, Vessel, VesselMovment } from './models';
+import { SampleData } from './data';
 
 declare var google: any;
 
-interface Marker {
+interface Alert {
   lat: number;
   lng: number;
-  label?: string;
-  draggable: boolean;
-}
-
-interface Location {
-  lat: number;
-  lng: number;
+  id: number;
+  score: number;
+  desc?: string;
   viewport?: Object;
-  zoom: number;
-  address_level_1?:string;
+  zoom?: number;
+  address_level_1?: string;
   address_level_2?: string;
   address_country?: string;
   address_zip?: string;
   address_state?: string;
-  marker?: Marker;
+  label?: string;
+  time?: Date;
 }
 
 
@@ -32,146 +35,99 @@ interface Location {
 })
 
 export class MapComponent implements OnInit {
-  circleRadius:number = 5000; // km
-  geocoder:any;
-  public location:Location = {
-    lat: 51.678418,
-    lng: 7.809007,
-    marker: {
-      lat: 51.678418,
-      lng: 7.809007,
-      draggable: true
-    },
-    zoom: 5
+  geocoder: any;
+  samplaeData = new SampleData();
+  color = '#FF0000';
+  private serverUrl = 'http://localhost:8080/socket/';
+  private stompClient;
+  public location: Alert = {
+    lat: 24.774265,
+    lng: 46.738586,
+    desc: 'hello',
+    id: 111,
+    score: 1.3,
+    zoom: 6
   };
+
+  public locations: Array<VesselMovment> = [];
+  public IncomingLocations: Array<VesselMovment> = [];
+  public pointerDate: number = moment('2018-01-01').valueOf();
+  public minDate: number = moment('2018-01-01').valueOf();
 
   @ViewChild(AgmMap) map: AgmMap;
 
   constructor(public mapsApiLoader: MapsAPILoader,
-              private zone: NgZone,
-              private wrapper: GoogleMapsAPIWrapper) {
+    private zone: NgZone,
+    private wrapper: GoogleMapsAPIWrapper) {
     this.mapsApiLoader = mapsApiLoader;
     this.zone = zone;
     this.wrapper = wrapper;
     this.mapsApiLoader.load().then(() => {
       this.geocoder = new google.maps.Geocoder();
     });
+
   }
 
+  clickedMarker(label: string, index: number) {
+    console.log(`clicked the marker: ${label || index}`);
+  }
 
   ngOnInit() {
-      this.location.marker.draggable = true;
+    // this.location.marker.draggable = false;
+    this.initializeWebSocketConnection();
+    this.loadData();
   }
 
-  findLocation(address) {
-    if (!this.geocoder) this.geocoder = new google.maps.Geocoder()
-    this.geocoder.geocode({
-      'address': address
-    }, (results, status) => {
-      console.log(results);
-      if (status == google.maps.GeocoderStatus.OK) {
-        for (var i = 0; i < results[0].address_components.length; i++) {
-          let types = results[0].address_components[i].types
-          console.log(types);
-          if (types.indexOf('locality') != -1) {
-            this.location.address_level_2 = results[0].address_components[i].long_name
-          }
-          if (types.indexOf('country') != -1) {
-            this.location.address_country = results[0].address_components[i].long_name
-          }
-          if (types.indexOf('postal_code') != -1) {
-            this.location.address_zip = results[0].address_components[i].long_name
-          }
-          if (types.indexOf('administrative_area_level_1') != -1) {
-            this.location.address_state = results[0].address_components[i].long_name
-          }
+  mapClicked($event: MouseEvent) {
+  }
+  private loadData() {
+    this.locations = this.samplaeData.vessels.get('vessel1').tracks;
+    this.IncomingLocations = this.samplaeData.vessels.get('vessel1').tracks;
+    console.log(this.samplaeData.vessels.get('vessel1').tracks);
+  }
+  initializeWebSocketConnection() {
+    const ws = new SockJS(this.serverUrl);
+    this.stompClient = Stomp.over(ws);
+    this.stompClient.debug = null;
+    const that = this;
+    this.stompClient.connect({}, function (frame) {
+      that.stompClient.subscribe('/hello', (message) => {
+        if (message.body) {
+          const alert = JSON.parse(message.body);
+          // console.log(t)
+          // if (moment(alert.time).isBetween(that.pointerDate, that.minDate)) {
+          //   console.log(alert);
+          //   that.locations.push(alert);
+          // }
+          // that.IncomingLocations.push(alert);
         }
-        if (results[0].geometry.location) {
-          this.location.lat = results[0].geometry.location.lat();
-          this.location.lng = results[0].geometry.location.lng();
-          this.location.marker.lat = results[0].geometry.location.lat();
-          this.location.marker.lng = results[0].geometry.location.lng();
-          this.location.marker.draggable = true;
-          this.location.viewport = results[0].geometry.viewport;
-        }
-
-        this.map.triggerResize()
-      } else {
-        alert("Sorry, this search produced no results.");
-      }
-    })
+      });
+    });
   }
+  mapReady(event: any) {
+    const points_map = event;
+    points_map.controls[google.maps.ControlPosition.BOTTOM_CENTER].push(document.getElementById('time-dim'));
+    // const flightPath = new google.maps.Polyline({
+    //   path: this.points,
+    //   geodesic: true,
+    //   strokeColor: '#FF0000',
+    //   strokeOpacity: 1.0,
+    //   strokeWeight: 2
+    // });
 
-  findAddressByCoordinates() {
-    this.geocoder.geocode({
-      'location': {
-        lat: this.location.marker.lat,
-        lng: this.location.marker.lng
-      }
-    }, (results, status) => {
-      this.decomposeAddressComponents(results);
-    })
+    // flightPath.setMap(this.points_map);
   }
-
-  decomposeAddressComponents(addressArray) {
-    if (addressArray.length == 0) return false;
-    let address = addressArray[0].address_components;
-    console.log(address);
-    for(let element of address) {
-      console.log(element);
-      if (element.length == 0 && !element['types']) continue
-      if (element['types'].indexOf('street_number') > -1) {
-        this.location.address_level_1 = element['long_name'];
-        continue;
-      }
-      if (element['types'].indexOf('route') > -1) {
-        this.location.address_level_1 += ', ' + element['long_name'];
-        continue;
-      }
-      if (element['types'].indexOf('locality') > -1) {
-        this.location.address_level_2 = element['long_name'];
-        continue;
-      }
-      if (element['types'].indexOf('administrative_area_level_1') > -1) {
-        this.location.address_state = element['long_name'];
-        continue;
-      }
-      if (element['types'].indexOf('country') > -1) {
-        this.location.address_country = element['long_name'];
-        continue;
-      }
-      if (element['types'].indexOf('postal_code') > -1) {
-        this.location.address_zip = element['long_name'];
-        continue;
-      }
-    }
+  timeChanged(event: any) {
+    this.pointerDate = event.value;
+    // this.minDate = event.maxValue;
+    console.log(event.value);
+    this.UpdateLocations();
   }
-
-  updateOnMap() {
-    console.log('updating')
-    let full_address:string = this.location.address_level_1 || ""
-    if (this.location.address_level_2) full_address = full_address + " " + this.location.address_level_2
-    if (this.location.address_state) full_address = full_address + " " + this.location.address_state
-    if (this.location.address_country) full_address = full_address + " " + this.location.address_country
-    this.findLocation(full_address);
-    console.log(full_address);
-  }
-
-  circleRadiusInKm() {
-    return this.circleRadius / 1000;
-  }
-
-  milesToRadius(value) {
-     this.circleRadius = value / 0.00062137;
-  }
-
-  circleRadiusInMiles() {
-    return this.circleRadius * 0.00062137;
-  }
-
-  markerDragEnd(m: any, $event: any) {
-   this.location.marker.lat = m.coords.lat;
-   this.location.marker.lng = m.coords.lng;
-   this.findAddressByCoordinates();
+  UpdateLocations() {
+    // this.locations.empty();
+    this.locations = _.filter(this.IncomingLocations, function (track) {
+      // console.log(track.time, moment(track.time).isBetween(this.pointerDate, this.minDate));
+      return moment(track.start_date).isBetween( this.minDate, this.pointerDate);
+    }, this);
   }
 }

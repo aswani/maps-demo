@@ -1,49 +1,55 @@
-<agm-map [(latitude)]="location.lat" [(longitude)]="location.lng" [(zoom)]="location.zoom" [disableDefaultUI]="true" [zoomControl]="true" [(fitBounds)]='location.viewport'>
-  <agm-marker [(latitude)]="location.marker.lat" [(longitude)]="location.marker.lng" [markerDraggable]="location.marker.draggable" (dragEnd)='markerDragEnd($event)'></agm-marker>
+<agm-map [(latitude)]="location.lat" 
+  [(longitude)]="location.lng" 
+  [(zoom)]="location.zoom" 
+  [disableDefaultUI]="true" 
+  (mapReady)="mapReady($event)">
+  (mapClick)='mapClicked($event)'
+  [(fitBounds)]='location.viewport'>
+    <agm-polyline   [strokeColor]="color">
+      <agm-polyline-point *ngFor="let location of locations; let i = index" [latitude]="location.lat" [longitude]="location.lng">
+      </agm-polyline-point>
+  </agm-polyline>
+  <app-time-dim id="time-dim" style="width: 500px;" (timeChanged)="timeChanged($event)" ></app-time-dim>
 
-  <agm-circle [latitude]="location.lat" [longitude]="location.lng"
-  [(radius)]="circleRadius"
-  [fillColor]="'blue'"
-  [circleDraggable]="true"
-  [editable]="true"></agm-circle>
+  <!--<agm-marker-cluster (click)="xx()" [zoomOnClick]="false"
+  imagePath="https://raw.githubusercontent.com/googlemaps/v3-utility-library/master/markerclustererplus/images/m">-->
+    <agm-marker 
+      *ngFor="let location of locations; let i = index"
+      [(latitude)]="location.lat" 
+      [(longitude)]="location.lng"
+      (markerClick)="clickedMarker(location.label, i)"
+      [label]="location.label"
+    
+      (dragEnd)='markerDragEnd($event)'>
+
+      <agm-snazzy-info-window [maxWidth]="300" [closeWhenOthersOpen]="true">
+        <ng-template>
+            <style type="text/css">
+              .tg  {border-collapse:collapse;border-spacing:0;border-color:#bbb;}
+              .tg td{font-family:Arial, sans-serif;font-size:14px;padding:10px 5px;border-style:solid;border-width:1px;overflow:hidden;word-break:normal;border-color:#bbb;color:#594F4F;background-color:#E0FFEB;}
+              .tg th{font-family:Arial, sans-serif;font-size:14px;font-weight:normal;padding:10px 5px;border-style:solid;border-width:1px;overflow:hidden;word-break:normal;border-color:#bbb;color:#493F3F;background-color:#9DE0AD;}
+              .tg .tg-3pun{font-size:12px;border-color:inherit;text-align:left}
+              .tg .tg-73a0{font-size:12px;border-color:inherit;text-align:left;vertical-align:top}
+              .tg .tg-0lax{text-align:left;vertical-align:top}
+              @media screen and (max-width: 767px) {.tg {width: auto !important;}.tg col {width: auto !important;}.tg-wrap {overflow-x: auto;-webkit-overflow-scrolling: touch;}}</style>
+              <div class="tg-wrap"><table class="tg">
+                <tr>
+                  <th class="tg-3pun">ID</th>
+                  <th class="tg-73a0">Score</th>
+                  <th class="tg-0lax">DESC</th>
+                  <th class="tg-0lax">Date</th>
+                </tr>
+                <tr>
+                  <td class="tg-73a0"><a href="http://www.google.com/?q={{location.id}}" target="_parent"> {{location.id}}</a></td>
+                  <td class="tg-73a0">{{location.score}}</td>
+                  <td class="tg-0lax">{{location.desc}}</td>
+                  <td class="tg-0lax">{{location.time}}</td>
+                </tr>
+              </table></div>
+          
+        </ng-template>
+      </agm-snazzy-info-window>
+      </agm-marker>
+    <!-- </agm-marker-cluster> -->
 </agm-map>
 
-<div class="container-fluid">
-  <div class='row'>
-    <div class="form-group">
-      <label class='col-sm-2'>Address Line 1</label>
-      <input class='col-sm-10' type='text' [(ngModel)]='location.address_level_1' class="form-control" placeholder='Office, Apt, Home, Street'>
-    </div>
-    <div class="form-group">
-      <label class='col-sm-2'>Address Line 2</label>
-      <input class='col-sm-10'  [(ngModel)]='location.address_level_2' class='form-control' placeholder='City'/>
-    </div>
-
-    <div class="form-group">
-      <label class='col-sm-2'>State / Province / Region</label>
-      <input class='col-sm-10'  [(ngModel)]='location.address_state' class='form-control' placeholder='State'>
-    </div>
-
-    <div class="form-group">
-      <label class='col-sm-2'>Country</label>
-      <input class='col-sm-10'  [(ngModel)]='location.address_country' class='form-control' placeholder='State'>
-    </div>
-
-    <div class="form-group">
-      <label class='col-sm-2'>Postal / Zip code</label>
-      <input class='col-sm-10'  [(ngModel)]='location.address_zip' class='form-control' placeholder='Zip'>
-    </div>
-
-    <button (click)='updateOnMap()' type="submit" class="btn btn-primary">Search</button>
-  </div>
-</div>
-
-
-<div class="container-fluid">
-  <div class='row'>
-    <div class="form-group">
-      <label class='col-sm-2'>Circle radius in miles</label>
-        <input type='text' class='form-control' #miles  [value]='circleRadiusInMiles() | number:"0.0-2"'  (keyup)="milesToRadius(miles.value)"/>
-    </div>
-  </div>
-</div>

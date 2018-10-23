@@ -1,0 +1,21 @@
+<!-- <div>
+  <div style="float: left;">
+    <button type="button" #button_play class=" fa fa-play" (click)='buttonPlayPress()'></button>
+  </div>
+  <div style="float: ri;">
+  </div>
+</div>
+  <div>
+    <button type="button" #button_fbw class="fa fa-fast-backward" (click)='buttonRewindPress()'></button>
+    <button type="button" #button_ffw class="fa fa-fast-forward" (click)='buttonFastforwardPress()'></button>
+  </div>
+ -->
+ <div class="flex-container container">  
+  <div class="player-button"><button type="button" #button_play class=" fa fa-play" (click)='buttonPlayPress()'></button></div>
+  <div class="custom-slider"><ng5-slider [(value)]="value"  
+    [options]="options" 
+    (userChange)="onUserChange($event)"
+    (userChangeEnd)="onUserChange($event)"></ng5-slider></div>
+  <div class="player-button"><button type="button" #button_fbw class="fa fa-fast-backward" (click)='buttonRewindPress()'></button></div>
+  <div class="player-button"><button type="button" #button_ffw class="fa fa-fast-forward" (click)='buttonFastforwardPress()'></button></div>
+</div>  
